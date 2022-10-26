@@ -19,42 +19,58 @@ def check_window(window, num_discs, piece, config):
     return (window.count(piece) == num_discs and window.count(0) == config.inarow-num_discs)
     
 # Helper function for get_heuristic: counts number of windows satisfying specified heuristic conditions
-def count_windows(grid, num_discs, piece, config):
-    num_windows = 0
+def find_spots(grid, num_discs, piece, config):
+    good_spots = []
     # horizontal
     for row in range(config.rows):
         for col in range(config.columns-(config.inarow-1)):
             window = list(grid[row, col:col+config.inarow])
             if check_window(window, num_discs, piece, config):
-                num_windows += 1
+                for i,spot in enumerate(window):
+                    r,c = row,col+i
+                    assert grid[r,c] == spot
+                    if (r,c) not in good_spots and spot == 0:
+                        good_spots.append((r,c))
     # vertical
     for row in range(config.rows-(config.inarow-1)):
         for col in range(config.columns):
             window = list(grid[row:row+config.inarow, col])
             if check_window(window, num_discs, piece, config):
-                num_windows += 1
+                for i,spot in enumerate(window):
+                    r,c = row+i,col
+                    assert grid[r,c] == spot
+                    if (r,c) not in good_spots and spot == 0:
+                        good_spots.append((r,c))
     # positive diagonal
     for row in range(config.rows-(config.inarow-1)):
         for col in range(config.columns-(config.inarow-1)):
             window = list(grid[range(row, row+config.inarow), range(col, col+config.inarow)])
             if check_window(window, num_discs, piece, config):
-                num_windows += 1
+                for i,spot in enumerate(window):
+                    r,c = row+i,col+i
+                    assert grid[r,c] == spot
+                    if (r,c) not in good_spots and spot == 0:
+                        good_spots.append((r,c))
     # negative diagonal
     for row in range(config.inarow-1, config.rows):
         for col in range(config.columns-(config.inarow-1)):
             window = list(grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
             if check_window(window, num_discs, piece, config):
-                num_windows += 1
-    return num_windows
+                for i,spot in enumerate(window):
+                    r,c = row-i,col+i
+                    assert grid[r,c] == spot
+                    if (r,c) not in good_spots and spot == 0:
+                        good_spots.append((r,c))
+    return good_spots
 
 # Helper function for minimax: calculates value of heuristic for grid
 def get_heuristic(grid, mark, config):
     score = 0
     for i,num in enumerate(range(3, config.inarow+1)):
         weight = 100**i
-        num_windows = count_windows(grid, num, mark, config)
-        num_windows_opp = count_windows(grid, num, mark%2+1, config)
-        score += weight * num_windows - 100 * weight * num_windows_opp 
+        good_spots = find_spots(grid, num, mark, config)
+        good_spots_opp = find_spots(grid, num, mark%2+1, config)
+        score += weight * len(good_spots) - 100 * weight * len(good_spots_opp) 
     return score
 
 # Uses minimax to calculate value of dropping piece in selected column

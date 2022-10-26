@@ -19,7 +19,7 @@ def check_window(window, num_discs, piece, config):
     return (window.count(piece) == num_discs and window.count(0) == config.inarow-num_discs)
     
 # Helper function for get_heuristic: counts number of windows satisfying specified heuristic conditions
-def find_spots(grid, num_discs, piece, config):
+def find_spots_2(grid, num_discs, piece, config):
     good_spots = []
     # horizontal
     for row in range(config.rows):
@@ -63,20 +63,53 @@ def find_spots(grid, num_discs, piece, config):
                         good_spots.append((r,c))
     return good_spots
 
-# Helper function for minimax: calculates value of heuristic for grid
-def get_heuristic(grid, mark, config):
+# Helper function for get_heuristic: counts number of windows satisfying specified heuristic conditions
+def count_windows_2(grid, num_discs, piece, config):
+    num_windows = 0
+    # horizontal
+    for row in range(config.rows):
+        for col in range(config.columns-(config.inarow-1)):
+            window = list(grid[row, col:col+config.inarow])
+            if check_window(window, num_discs, piece, config):
+                num_windows += 1
+    # vertical
+    for row in range(config.rows-(config.inarow-1)):
+        for col in range(config.columns):
+            window = list(grid[row:row+config.inarow, col])
+            if check_window(window, num_discs, piece, config):
+                num_windows += 1
+    # positive diagonal
+    for row in range(config.rows-(config.inarow-1)):
+        for col in range(config.columns-(config.inarow-1)):
+            window = list(grid[range(row, row+config.inarow), range(col, col+config.inarow)])
+            if check_window(window, num_discs, piece, config):
+                num_windows += 1
+    # negative diagonal
+    for row in range(config.inarow-1, config.rows):
+        for col in range(config.columns-(config.inarow-1)):
+            window = list(grid[range(row, row-config.inarow, -1), range(col, col+config.inarow)])
+            if check_window(window, num_discs, piece, config):
+                num_windows += 1
+    return num_windows
+
+# Calculate spots from 0
+def get_heuristic_2(grid, mark, config):
     score = 0
-    for i,num in enumerate(range(3, config.inarow+1)):
+    for i,num in enumerate(range(0, config.inarow)):
         weight = 100**i
-        good_spots = find_spots(grid, num, mark, config)
-        good_spots_opp = find_spots(grid, num, mark%2+1, config)
-        score += weight * len(good_spots) - 100 * weight * len(good_spots_opp) 
+        good_spots = find_spots_2(grid, num, mark, config)
+        good_spots_opp = find_spots_2(grid, num, mark%2+1, config)
+        score += weight * len(good_spots) - 10 * weight * len(good_spots_opp)
+    weight = 100**(config.inarow) 
+    num_wins = count_windows_2(grid, config.inarow, mark, config)
+    num_wins_opp = count_windows_2(grid, config.inarow, mark%2+1, config)
+    score += weight * num_wins - 10 * weight * num_wins_opp
     return score
 
 # Uses minimax to calculate value of dropping piece in selected column
-def score_move(grid, col, mark, config, nsteps):
+def score_move_2(grid, col, mark, config, nsteps):
     next_grid = drop_piece(grid, col, mark, config)
-    score = minimax(next_grid, nsteps-1, False, mark, config)
+    score = minimax_2(next_grid, nsteps-1, False, mark, config)
     return score
 
 # Helper function for minimax: checks if agent or opponent has four in a row in the window
@@ -116,22 +149,22 @@ def is_terminal_node(grid, config):
     return False
 
 # Minimax implementation
-def minimax(node, depth, maximizingPlayer, mark, config):
+def minimax_2(node, depth, maximizingPlayer, mark, config):
     is_terminal = is_terminal_node(node, config)
     valid_moves = [c for c in range(config.columns) if node[0][c] == 0]
     if depth == 0 or is_terminal:
-        return get_heuristic(node, mark, config)
+        return get_heuristic_2(node, mark, config)
     if maximizingPlayer:
         value = -np.Inf
         for col in valid_moves:
             child = drop_piece(node, col, mark, config)
-            value = max(value, minimax(child, depth-1, False, mark, config))
+            value = max(value, minimax_2(child, depth-1, False, mark, config))
         return value
     else:
         value = np.Inf
         for col in valid_moves:
             child = drop_piece(node, col, mark%2+1, config)
-            value = min(value, minimax(child, depth-1, True, mark, config))
+            value = min(value, minimax_2(child, depth-1, True, mark, config))
         return value
     
 # How deep to make the game tree: higher values take longer to run!
@@ -143,7 +176,7 @@ def agent(obs, config):
     # Convert the board to a 2D grid
     grid = np.asarray(obs.board).reshape(config.rows, config.columns)
     # Use the heuristic to assign a score to each possible board in the next step
-    scores = dict(zip(valid_moves, [score_move(grid, col, obs.mark, config, N_STEPS) for col in valid_moves]))
+    scores = dict(zip(valid_moves, [score_move_2(grid, col, obs.mark, config, N_STEPS) for col in valid_moves]))
     # Get a list of columns (moves) that maximize the heuristic
     max_cols = [key for key in scores.keys() if scores[key] == max(scores.values())]
     # Select at random from the maximizing columns
