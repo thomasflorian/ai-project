@@ -92,16 +92,21 @@ def count_windows_3(grid, num_discs, piece, config):
                 num_windows += 1
     return num_windows
 
-# Calculate spots from 0 + Adjacency bonus
+# This is the heuristic for agent 3. This is described in detail within the report
 def get_heuristic_3(grid, mark, config):
     score = 0
+    # Loop through number of pieces from 0 to config.inarow - 1 (since loop is exclusive)    
     for i,num in enumerate(range(0, config.inarow)):
+        # Weight based on number of pieces
         weight = 10**i
+        # Find spots that are "good"
         good_spots = find_spots_3(grid, num, mark, config)
+        # Find spots that are "good" for opponent
         good_spots_opp = find_spots_3(grid, num, mark%2+1, config)
+        # Increment score by weighted sum.
         score += weight * len(good_spots) - 5 * weight * len(good_spots_opp)
     weight = 10**(config.inarow) 
-    # Adjacency bonus
+    # Adjacency bonus for two "good" spots on top of one another
     prev_c, prev_r = -1, -1 
     for c,r in sorted([(c,r) for r,c in good_spots]):
         if c == prev_c and r == prev_r + 1:
@@ -112,10 +117,11 @@ def get_heuristic_3(grid, mark, config):
         if c == prev_c and r == prev_r + 1:
             score -= weight
         prev_c, prev_r = c, r
-    # Winning/Losing states
+    # Find number of winning positions
     weight = 10**(config.inarow+1) 
     num_wins = count_windows_3(grid, config.inarow, mark, config)
     num_wins_opp = count_windows_3(grid, config.inarow, mark%2+1, config)
+    # Increment score by very large positive value or negative value (depending on if your or opponent is winning)
     score += weight * num_wins - 5 * weight * num_wins_opp
     return score
 

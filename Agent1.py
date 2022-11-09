@@ -95,14 +95,21 @@ def count_windows_1(grid, num_discs, piece, config):
 # Calculate spots
 def get_heuristic_1(grid, mark, config):
     score = 0
+    # Loop through number of pieces from 3 to config.inarow - 1 (since loop is exclusive)
     for i,num in enumerate(range(3, config.inarow)):
+        # Weight based on number of pieces
         weight = 100**i
+        # Find spots that are "good"
         good_spots = find_spots_1(grid, num, mark, config)
+        # Find spots that are "good" for opponent
         good_spots_opp = find_spots_1(grid, num, mark%2+1, config)
+        # Increment score by weighted sum.
         score += weight * len(good_spots) - 10 * weight * len(good_spots_opp)
+    # Find number of winning positions
     weight = 100**(config.inarow - 3) 
     num_wins = count_windows_1(grid, config.inarow, mark, config)
     num_wins_opp = count_windows_1(grid, config.inarow, mark%2+1, config)
+    # Increment score by very large positive value or negative value (depending on if your or opponent is winning)
     score += weight * num_wins - 10 * weight * num_wins_opp
     return score
 
